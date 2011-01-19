@@ -1,5 +1,5 @@
 = Breakout Clone in Processing.js
 
-This a toy project built while getting familiar with Processing.js[http://processingjs.org/]. If you're looking for more details, you can checkout my blog[http://coryschires.com/breakout-clone-in-processing-js/].
+This a toy project built while getting familiar with Processing.js[http://processingjs.org/]. If you're looking for more details, you can {checkout my blog}[http://coryschires.com/breakout-clone-in-processing-js/].
 
 Note: This probably won't run in native Processing. Since the static typing made me wanna puke.
