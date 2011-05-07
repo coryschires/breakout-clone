@@ -1,0 +1,398 @@
+// --- colors ---
+color black = color(0);
+color bright_green = color(110,212,111);
+color pink = color(190,81,163);
+color purple = color(97,81,190);
+color light_blue = color(142, 185,234);
+color yellow = color(212,197,110);
+
+// --- initialize arrays for bricks ---
+Brick[] pink_bricks = new Brick[10];
+Brick[] green_bricks = new Brick[10];
+Brick[] navy_bricks = new Brick[10];
+Brick[] blue_bricks = new Brick[10];
+Brick[] yellow_bricks = new Brick[10];
+array[] bricks = new array[5];
+
+void setup() {
+	size(400,400);
+	frameRate(80);
+	
+	// initialize game, paddle, ball
+	game = new Game();
+	paddle = new Paddle();
+	ball = new Ball(200, 375);
+
+	// initialize bricks
+	for (int a=0; a<10; a++) {
+		pink_bricks[a] = new Brick(a*40, 0, pink);
+		green_bricks[a] = new Brick(a*40, 20, bright_green);
+		navy_bricks[a] = new Brick(a*40, 40, purple);
+		blue_bricks[a] = new Brick(a*40, 60, light_blue);
+		yellow_bricks[a] = new Brick(a*40, 80, yellow);		
+	}
+	
+	// combine all bricks into single array of arrays
+	bricks[0] =	pink_bricks;
+	bricks[1] = green_bricks;
+	bricks[2] =	navy_bricks;
+	bricks[3] =	blue_bricks;
+	bricks[4] =	yellow_bricks;
+}
+
+
+void draw() {
+	background(black);
+	
+	// draw bricks
+	game.build(bricks);
+	
+	// draw paddle and ball
+	paddle.display(mouseX);	
+	ball.display();	
+	
+	// animate ball
+	if (game.active) { 
+		ball.move();
+	} else {
+		ball.rest_on_paddle(paddle);
+		game.reset(bricks);
+		$('#messages #start').show();		
+	}
+	
+	// if ball goes off screen
+	if ( ball.off_screen() ) {
+		game.active = false;
+	}
+	
+	// if ball hit paddle
+	if ( ball.hit_paddle(paddle) ) {
+		ball.rebound_off(paddle);
+	}
+	
+	// if ball hits bricks
+	if (ball_y <= 100) {
+		hit_brick = game.determine_colision(ball, bricks);
+
+		if (hit_brick.is_active()) {
+			hit_brick.deactivate();
+			ball.bounce_off_brick(hit_brick);
+			game.increment_points(10);
+		}	
+	}
+}
+
+void keyPressed() {
+	// when user presses space bar
+	if (key == 64) {	
+		if ( ball.is_in_start_position() ) {
+			ball.move_upward(); // start game
+			game.active = true;
+			$('#messages #start').hide();
+		} else {
+			ball.toggle_pause(); // pause/resume game		
+		}
+	}	
+}
+
+// --------------------------------------------------------------------------------------
+//											GAME
+// --------------------------------------------------------------------------------------
+class Game {
+	int points;
+	int level;
+	boolean active;
+	
+	Game() {
+		points = 0;
+		level = 1;
+		active = false;
+	}
+	
+	void build(bricks) {
+		for (int i=0; i<bricks.length; i++) {
+			for (int x=0; x<bricks[i].length; x++) {
+				bricks[i][x].display();
+			}
+		}		
+	}
+		
+	void reset(bricks) {
+		for (int i=0; i<bricks.length; i++) {
+			for(int x=0; x<bricks[i].length; x++) {
+				brick = bricks[i][x];
+				brick.brick_active = true;
+				brick.brick_color = brick.original_color;
+			}				
+		}
+	}
+	
+	void increment_points(points_earned) {
+		points += points_earned;
+		$('#game_stats #points span').html(points);
+	}
+	
+	void determine_colision(ball, bricks) {
+		y = ball.show_ball_y();
+		x = ball.show_ball_x();		
+		
+		// find brick row based on ball location
+		if      (y >= 0 && y <=  20) { row = 0; } 
+		else if (y > 20 && y <=  40) { row = 1; } 
+		else if (y > 40 && y <=  60) { row = 2; } 
+		else if (y > 60 && y <=  80) { row = 3; } 
+		else if (y > 80 && y <= 100) { row = 4; }
+
+		// find brick column based on ball location
+		if 		(x >=  0 && x <=  40) { col = 0; } 
+		else if (x >  40 && x <=  80) { col = 1; } 
+		else if (x >  80 && x <= 120) { col = 2; } 
+		else if (x > 120 && x <= 160) { col = 3; } 
+		else if (x > 160 && x <= 200) { col = 4; } 
+		else if (x > 200 && x <= 240) { col = 5; } 
+		else if (x > 240 && x <= 280) { col = 6; } 
+		else if (x > 280 && x <= 320) { col = 7; } 
+		else if (x > 320 && x <= 360) { col = 8; } 
+		else if (x > 360 && x <= 400) { col = 9; }
+		
+		return bricks[row][col];	
+	}	
+}
+
+// --------------------------------------------------------------------------------------
+//											BALL
+// --------------------------------------------------------------------------------------
+class Ball {
+	
+	Ball(temp_ball_x, temp_ball_y) {
+		ball_diameter = 10;
+		ball_x = temp_ball_x;
+		ball_y = temp_ball_y;
+		speed_x = 0;
+		speed_y = 0;
+		speed_max = 4;
+		pre_pause_speed  = [0,0];	
+	}
+
+	void display() {
+		noStroke();
+		fill(bright_green);
+		ellipse(ball_x, ball_y, ball_diameter, ball_diameter);
+	}
+	
+	void move() {
+		// make ball bounce off ceiling
+		if (ball.edge("top") < 0) {
+			speed_y = speed_y * -1;
+		}
+		// make ball bounce off either sidewall
+		if ( ball.edge("left") < 0 || ball.edge("right") > width ) {
+			speed_x = speed_x * -1;
+		}
+		// animate ball
+		ball_x += speed_x;
+		ball_y += speed_y;
+	}
+	
+	void toggle_pause() {
+		if (speed_x == 0 && speed_y == 0) { 
+			speed_x = pre_pause_speed[0];
+			speed_y = pre_pause_speed[1];			
+			$('#messages #pause').hide();
+		} else {
+			pre_pause_speed[0] = speed_x;
+			pre_pause_speed[1] = speed_y;
+			speed_x = 0;
+			speed_y = 0;
+			$('#messages #pause').show();
+		}
+	}
+	
+	void rest_on_paddle(paddle) {
+		// stop ball from moving
+		speed_x = 0;
+		speed_y = 0;
+		// constrain resting position to keep ball on center of paddle
+		resting_position = constrain(mouseX, paddle.half_width(), width - paddle.half_width());
+		// place ball atop paddle
+		ball_y = 375;
+		ball_x = resting_position;
+	}
+	
+	void is_in_start_position() {
+		if ( ball_y == 375 && (speed_y == 0 && speed_x == 0) ) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	void move_upward() {
+		speed_x = 0;
+		speed_y = -3;
+	}
+	
+	void bounce_off_brick(brick) {
+		bcp = brick.center_point();
+		distance_at_bounce = dist(bcp[0],bcp[1], ball_x,ball_y);
+		
+		if (distance_at_bounce >= 20) {
+			speed_x = speed_x * -1;
+		} else {
+			speed_y = speed_y * -1;
+		}
+	}
+
+	void edge(edge) {
+		if (edge == "top") {
+			ball_edge = ball_y - 5;
+		} else if (edge == "bottom") {
+			ball_edge = ball_y + 5;
+		} else if (edge	== "left") {
+			ball_edge = ball_x - 5;
+		} else if (edge	== "right") {
+			ball_edge = ball_x + 5;
+		} else {
+			return console.log("Argument Error - Valid arguements: top, bottom, left, right");			
+		}
+		return ball_edge;
+	}
+	
+	void off_screen() {
+		if (ball_y > height) {return true;} else {return false;} 
+	}
+		
+	void hit_paddle(paddle) {
+		if (ball_y > paddle.edge("top") && (ball_x > paddle.edge("left") && ball_x < paddle.edge("right") )) {
+			return true;
+		} else { 
+			return false;
+		}
+	}
+	
+	void rebound_off(paddle) {
+		// cacluate distance between point of contact and center of paddle
+		bounce_point = dist(
+			ball_x, paddle.show_paddle_y(), // point of contact
+			paddle.show_paddle_x(), paddle.show_paddle_y() // center of paddle
+		);
+				
+		// calculate rebound angle relative to bounce point
+		if (ball_x < paddle.show_paddle_x()) {
+			speed_x = (bounce_point * 0.05) * -1;
+		} else {
+			speed_x = bounce_point * 0.05;
+		}
+		
+		// calculate y speed relative to rebound angle 
+		speed_y = (speed_max - abs(speed_x)) * -1;
+	}
+	
+	void show_ball_x() {
+		return ball_x;
+	}
+
+	void show_ball_y() {
+		return ball_y;
+	}
+
+}
+
+// --------------------------------------------------------------------------------------
+//											BRICK
+// --------------------------------------------------------------------------------------
+class Brick {
+	color brick_stroke;
+	color brick_color;
+	color original_color;
+	int brick_width;
+	int brick_height;
+	int brick_x;
+	int brick_y;
+	boolean brick_active;	
+	
+	Brick(temp_brick_x, temp_brick_y, temp_color) {
+		brick_stroke = black;
+		brick_color = temp_color;
+		brick_width = 40;
+		brick_height = 20;
+		brick_x = temp_brick_x;
+		brick_y = temp_brick_y;
+		brick_active = true;
+		original_color = temp_color;
+	}
+	
+	void display() {
+		rectMode(CORNER);
+		stroke(brick_stroke);
+		fill(brick_color);
+		rect(brick_x, brick_y, brick_width, brick_height);
+	}
+		
+	void is_active() {
+		return brick_active;
+	}
+	
+	void deactivate() {
+		brick_active = false;
+		brick_color = black;
+	}
+	
+	void center_point() {
+		return [brick_x + brick_width/2, brick_y + brick_height/2 ];
+	}
+}
+
+// --------------------------------------------------------------------------------------
+//											PADDLE
+// --------------------------------------------------------------------------------------
+class Paddle {
+	int paddle_width;
+	int paddle_height;
+	color paddle_color;
+	float paddle_x;
+	float paddle_y;
+
+	Paddle() {
+		paddle_width = 80;
+		paddle_height = 7;
+		paddle_color = bright_green;
+		paddle_x = width/2;
+		paddle_y = 385;
+	}
+	
+	void display() {
+		// determine paddle_y and constrain so paddle cannot leave screen
+		paddle_x = constrain(mouseX, paddle_width/2, width - paddle_width/2);
+		
+		// draw paddle
+		rectMode(CENTER);
+		noStroke();
+		fill(paddle_color);	
+		rect(paddle_x, paddle_y, paddle_width, paddle_height);
+	}
+	
+	void edge(edge) {
+		if (edge == "left") {
+			return paddle_x - (paddle_width/2);
+		} else if (edge == "right") {
+			return paddle_x + (paddle_width/2);
+		} else if (edge == "top") {
+			return paddle_y -5;			
+		} else {
+			return console.log("Argument Error - Valid arguements: left, right, top");			
+		}	
+	}
+
+	void half_width() {
+		return paddle_width/2;
+	}
+
+	void show_paddle_x() {
+		return paddle_x;
+	}
+
+	void show_paddle_y() { 
+		return paddle_y;
+	}
+}

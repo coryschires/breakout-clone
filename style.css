@@ -1,0 +1,15 @@
+* { margin: 0; padding: 0; }
+body { color: #333; font-family: helvetica, arial, sans-serif; }
+#page_wrap {margin: auto; width: 418px; }
+
+#canvas { border: black 3px solid; padding: 6px; height: 400px; width: 400px; margin: 30px auto 0 auto; }
+
+#game_stats { padding: 5px 0 20px 0; }
+#game_stats #level { float: left; }
+#game_stats #points { float: right; }
+
+#messages { color: white; position: absolute; width: 400px; margin-top: 200px; text-align: center; }
+#messages p { margin-bottom: 5px; }        
+
+.hidden { display: none; }
+.smaller { font-size: 11px; }
